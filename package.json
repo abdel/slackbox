@@ -13,9 +13,6 @@
   },
   "author": "Mike Francis <mikeffrancis@gmail.com>, Abdelrahman Ahmed <abdel@abdel.me>",
   "license": "MIT",
-  "devDependencies": {
-    "dotenv": "^2.0.0"
-  },
   "dependencies": {
     "body-parser": "~1.12.2",
     "express": "~4.12.3",

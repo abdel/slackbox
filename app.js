@@ -115,7 +115,50 @@ app.post('/store', function(req, res) {
           });
       }
     }, function(err) {
-      return res.send('Could not refresh access token. You probably need to re-authorise yourself from your app\'s homepage.');
+      return res.send('Could not refresh access token.');
+    });
+});
+
+app.post('/empty', function(req, res) {
+  spotifyApi.refreshAccessToken()
+    .then(function(data) {
+      spotifyApi.setAccessToken(data.body['access_token']);
+      if (data.body['refresh_token']) {
+        spotifyApi.setRefreshToken(data.body['refresh_token']);
+      }
+
+      spotifyApi.getPlaylistTracks(process.env.SPOTIFY_USERNAME, process.env.SPOTIFY_PLAYLIST_ID)
+        .then(function(data) {
+          var tracks = data.body.items;
+          var deleteTracks = [];
+
+          for (var i = 0; i < 100; i++) {
+            deleteTracks.push({uri: tracks[i].uri});
+          }
+
+          res.setHeader('Content-Type', 'application/json');
+          res.send(JSON.stringify(deleteTracks));
+
+          /*
+          spotifyApi.removeTracksFromPlaylist(process.env.SPOTIFY_USERNAME, process.env.SPOTIFY_PLAYLIST_ID)
+            .then(function(data) {
+
+          });*/
+        }, function(err) {
+          res.send(err.message);
+        });
+    });
+});
+
+app.post('/refresh', function(req, res) {
+  spotifyApi.refreshAccessToken()
+    .then(function(data) {
+      spotifyApi.setAccessToken(data.body['access_token']);
+      if (data.body['refresh_token']) {
+        spotifyApi.setRefreshToken(data.body['refresh_token']);
+      }
+    }, function(err) {
+      res.send(err.message);
     });
 });
 
