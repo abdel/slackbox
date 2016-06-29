@@ -63,11 +63,11 @@ app.post('/store', function(req, res) {
 
         spotifyApi.getTrack(trackID)
           .then(function(data) {
-            console.log('debug:' + data.body.name);
+            var track = data.body;
 
             spotifyApi.addTracksToPlaylist(process.env.SPOTIFY_USERNAME, process.env.SPOTIFY_PLAYLIST_ID, ['spotify:track:' + trackID])
               .then(function(data) {
-                text = 'Track added: ' + trackID;
+                text = 'Track added: *' + track.name + '* by *' + track.artists[0].name + '*';
                 response_type = process.env.SLACK_RESPONSE_TYPE || 'ephemeral';
 
                 res.setHeader('Content-Type', 'application/json');
@@ -78,6 +78,8 @@ app.post('/store', function(req, res) {
               }, function(err) {
                 return res.send(err.message);
               });
+          }, function(err) {
+            return res.send('Could not find that track.');
           });
 
       } else {
