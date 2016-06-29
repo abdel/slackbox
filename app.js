@@ -1,13 +1,10 @@
 var express       = require('express');
 var bodyParser    = require('body-parser');
 var request       = require('request');
-var dotenv        = require('dotenv');
 var url           = require('url');
 var path          = require('path');
 var validUrl      = require('valid-url');
 var SpotifyWebApi = require('spotify-web-api-node');
-
-dotenv.load();
 
 var spotifyApi = new SpotifyWebApi({
   clientId     : process.env.SPOTIFY_KEY,
@@ -20,17 +17,6 @@ app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({
   extended: true
 }));
-
-// Refresh token periodically
-if (process.argv[2] == 'refresh') {
-  spotifyApi.refreshAccessToken()
-    .then(function(data) {
-      spotifyApi.setAccessToken(data.body['access_token']);
-      if (data.body['refresh_token']) {
-        spotifyApi.setRefreshToken(data.body['refresh_token']);
-      }
-  });
-}
 
 app.get('/', function(req, res) {
   if (spotifyApi.getAccessToken()) {
