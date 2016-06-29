@@ -84,7 +84,7 @@ app.post('/store', function(req, res) {
 
       } else {
         if(req.body.text.indexOf(' - ') === -1) {
-          var query = 'track:' + req.body.text;
+          var query = req.body.text;
         } else {
           var pieces = req.body.text.split(' - ');
           var query = 'artist:' + pieces[0].trim() + ' track:' + pieces[1].trim();
