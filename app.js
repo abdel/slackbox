@@ -21,6 +21,17 @@ app.use(bodyParser.urlencoded({
   extended: true
 }));
 
+// Refresh token periodically
+if (process.argv[2] == 'refresh') {
+  spotifyApi.refreshAccessToken()
+    .then(function(data) {
+      spotifyApi.setAccessToken(data.body['access_token']);
+      if (data.body['refresh_token']) {
+        spotifyApi.setRefreshToken(data.body['refresh_token']);
+      }
+  });
+}
+
 app.get('/', function(req, res) {
   if (spotifyApi.getAccessToken()) {
     return res.send('You are logged in.');
@@ -64,28 +75,19 @@ app.post('/store', function(req, res) {
         var parsed = url.parse(req.body.text);
         var trackID = path.basename(parsed.pathname);
 
-        spotifyApi.getTrack(trackID)
+        spotifyApi.addTracksToPlaylist(process.env.SPOTIFY_USERNAME, process.env.SPOTIFY_PLAYLIST_ID, ['spotify:track:' + trackID])
           .then(function(data) {
-            var results = data.body.tracks.items;
-            if (results.length === 0) {
-              return res.send('Could not find that track.');
-            }
-            console.log(results);
-            spotifyApi.addTracksToPlaylist(process.env.SPOTIFY_USERNAME, process.env.SPOTIFY_PLAYLIST_ID, ['spotify:track:' + trackID])
-              .then(function(data) {
-                text = 'Track added: ' + trackID;
-                response_type = process.env.SLACK_RESPONSE_TYPE || 'ephemeral';
+            text = 'Track added: ' + trackID;
+            response_type = process.env.SLACK_RESPONSE_TYPE || 'ephemeral';
 
-                res.setHeader('Content-Type', 'application/json');
-                res.send({
-                  response_type: response_type,
-                  text: text
-                });
-              }, function(err) {
-                return res.send(err.message);
-              });
+            res.setHeader('Content-Type', 'application/json');
+            res.send({
+              response_type: response_type,
+              text: text
+            });
+          }, function(err) {
+            return res.send(err.message);
           });
-
 
       } else {
         if(req.body.text.indexOf(' - ') === -1) {

@@ -1,5 +1,5 @@
 {
-  "name": "benchmark-slackbox",
+  "name": "abdelm-slackbox",
   "version": "0.1.0",
   "description": "Spotify playlist collaboration through Slack.",
   "main": "index.js",
@@ -9,9 +9,9 @@
   },
   "repository": {
     "type": "git",
-    "url": "benchmarkstudios/slackbox"
+    "url": "abdelm/slackbox"
   },
-  "author": "Mike Francis <mikeffrancis@gmail.com>",
+  "author": "Mike Francis <mikeffrancis@gmail.com>, Abdelrahman Ahmed <abdel@abdel.me>",
   "license": "MIT",
   "devDependencies": {},
   "dependencies": {

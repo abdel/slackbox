@@ -1,6 +1,6 @@
 {
   "name": "Slackbox",
   "description": "Spotify playlist collaboration through Slack.",
-  "repository": "https://github.com/benchmarkstudios/slackbox",
+  "repository": "https://github.com/abdelm/slackbox",
   "keywords": ["slack", "spotify"]
 }
