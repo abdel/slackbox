@@ -2,6 +2,9 @@ var express       = require('express');
 var bodyParser    = require('body-parser');
 var request       = require('request');
 var dotenv        = require('dotenv');
+var url           = require('url');
+var path          = require('path');
+var validUrl      = require('valid-url');
 var SpotifyWebApi = require('spotify-web-api-node');
 
 dotenv.load();
@@ -57,35 +60,65 @@ app.post('/store', function(req, res) {
       if (data.body['refresh_token']) {
         spotifyApi.setRefreshToken(data.body['refresh_token']);
       }
-      if(req.body.text.indexOf(' - ') === -1) {
-        var query = 'track:' + req.body.text;
-      } else {
-        var pieces = req.body.text.split(' - ');
-        var query = 'artist:' + pieces[0].trim() + ' track:' + pieces[1].trim();
-      }
-      spotifyApi.searchTracks(query)
-        .then(function(data) {
-          var results = data.body.tracks.items;
-          if (results.length === 0) {
-            return res.send('Could not find that track.');
-          }
-          var track = results[0];
-          spotifyApi.addTracksToPlaylist(process.env.SPOTIFY_USERNAME, process.env.SPOTIFY_PLAYLIST_ID, ['spotify:track:' + track.id])
-            .then(function(data) {
-              text = 'Track added: *' + track.name + '* by *' + track.artists[0].name + '*';
-              response_type = process.env.SLACK_RESPONSE_TYPE || 'ephemeral';
+      if (validUrl.isUri(req.body.text)) {
+        var parsed = url.parse(req.body.text);
+        var trackID = path.basename(parsed.pathname);
 
-              res.setHeader('Content-Type', 'application/json');
-              res.send({
-                response_type: response_type,
-                text: text
+        spotifyApi.getTrack(trackID)
+          .then(function(data) {
+            var results = data.body.tracks.items;
+            if (results.length === 0) {
+              return res.send('Could not find that track.');
+            }
+            console.log(results);
+            spotifyApi.addTracksToPlaylist(process.env.SPOTIFY_USERNAME, process.env.SPOTIFY_PLAYLIST_ID, ['spotify:track:' + trackID])
+              .then(function(data) {
+                text = 'Track added: ' + trackID;
+                response_type = process.env.SLACK_RESPONSE_TYPE || 'ephemeral';
+
+                res.setHeader('Content-Type', 'application/json');
+                res.send({
+                  response_type: response_type,
+                  text: text
+                });
+              }, function(err) {
+                return res.send(err.message);
               });
-            }, function(err) {
-              return res.send(err.message);
-            });
-        }, function(err) {
-          return res.send(err.message);
-        });
+          });
+
+
+      } else {
+        if(req.body.text.indexOf(' - ') === -1) {
+          var query = 'track:' + req.body.text;
+        } else {
+          var pieces = req.body.text.split(' - ');
+          var query = 'artist:' + pieces[0].trim() + ' track:' + pieces[1].trim();
+        }
+    
+        spotifyApi.searchTracks(query)
+          .then(function(data) {
+            var results = data.body.tracks.items;
+            if (results.length === 0) {
+              return res.send('Could not find that track.');
+            }
+            var track = results[0];
+            spotifyApi.addTracksToPlaylist(process.env.SPOTIFY_USERNAME, process.env.SPOTIFY_PLAYLIST_ID, ['spotify:track:' + track.id])
+              .then(function(data) {
+                text = 'Track added: *' + track.name + '* by *' + track.artists[0].name + '*';
+                response_type = process.env.SLACK_RESPONSE_TYPE || 'ephemeral';
+
+                res.setHeader('Content-Type', 'application/json');
+                res.send({
+                  response_type: response_type,
+                  text: text
+                });
+              }, function(err) {
+                return res.send(err.message);
+              });
+          }, function(err) {
+            return res.send(err.message);
+          });
+      }
     }, function(err) {
       return res.send('Could not refresh access token. You probably need to re-authorise yourself from your app\'s homepage.');
     });
