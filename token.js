@@ -7,12 +7,10 @@ var spotifyApi = new SpotifyWebApi({
 });
 
 // Refresh token periodically
-if (process.argv[2] == 'refresh') {
-  spotifyApi.refreshAccessToken()
-    .then(function(data) {
-      spotifyApi.setAccessToken(data.body['access_token']);
-      if (data.body['refresh_token']) {
-        spotifyApi.setRefreshToken(data.body['refresh_token']);
-      }
-  });
-}
+spotifyApi.refreshAccessToken()
+  .then(function(data) {
+    spotifyApi.setAccessToken(data.body['access_token']);
+    if (data.body['refresh_token']) {
+      spotifyApi.setRefreshToken(data.body['refresh_token']);
+    }
+});
