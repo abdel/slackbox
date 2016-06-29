@@ -18,16 +18,20 @@ var spotifyApi = new SpotifyWebApi({
       var tracks = data.body.items;
       var deleteTracks = [];
 
+      console.log(data.body);
+      
       for (var i = 0; i < 100; i++) {
         deleteTracks.push({uri: tracks[i].uri});
       }
 
       console.log(deleteTracks);
-      
+
       /*
       spotifyApi.removeTracksFromPlaylist(process.env.SPOTIFY_USERNAME, process.env.SPOTIFY_PLAYLIST_ID)
         .then(function(data) {
 
       });*/
+    }, function(err) {
+      console.log(err);
     });
 //}
