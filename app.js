@@ -61,18 +61,23 @@ app.post('/store', function(req, res) {
         var parsed = url.parse(req.body.text);
         var trackID = path.basename(parsed.pathname);
 
-        spotifyApi.addTracksToPlaylist(process.env.SPOTIFY_USERNAME, process.env.SPOTIFY_PLAYLIST_ID, ['spotify:track:' + trackID])
+        spotifyApi.getTrack(trackID)
           .then(function(data) {
-            text = 'Track added: ' + trackID;
-            response_type = process.env.SLACK_RESPONSE_TYPE || 'ephemeral';
+            console.log('debug:' + data);
 
-            res.setHeader('Content-Type', 'application/json');
-            res.send({
-              response_type: response_type,
-              text: text
-            });
-          }, function(err) {
-            return res.send(err.message);
+            spotifyApi.addTracksToPlaylist(process.env.SPOTIFY_USERNAME, process.env.SPOTIFY_PLAYLIST_ID, ['spotify:track:' + trackID])
+              .then(function(data) {
+                text = 'Track added: ' + trackID;
+                response_type = process.env.SLACK_RESPONSE_TYPE || 'ephemeral';
+
+                res.setHeader('Content-Type', 'application/json');
+                res.send({
+                  response_type: response_type,
+                  text: text
+                });
+              }, function(err) {
+                return res.send(err.message);
+              });
           });
 
       } else {
