@@ -63,7 +63,7 @@ app.post('/store', function(req, res) {
 
         spotifyApi.getTrack(trackID)
           .then(function(data) {
-            console.log('debug:' + data);
+            console.log('debug:' + data.body.name);
 
             spotifyApi.addTracksToPlaylist(process.env.SPOTIFY_USERNAME, process.env.SPOTIFY_PLAYLIST_ID, ['spotify:track:' + trackID])
               .then(function(data) {
