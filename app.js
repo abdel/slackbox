@@ -119,7 +119,37 @@ app.post('/store', function(req, res) {
     });
 });
 
+app.use('/refresh', function(req, res, next) {
+  if (req.body.token !== process.env.SLACK_TOKEN) {
+    return res.status(500).send('Cross site request forgerizzle!');
+  }
+  next();
+});
+
 app.post('/refresh', function(req, res) {
+ spotifyApi.refreshAccessToken()
+  .then(function(data) {
+    spotifyApi.setAccessToken(data.body['access_token']);
+    if (data.body['refresh_token']) {
+      spotifyApi.setRefreshToken(data.body['refresh_token']);
+      res.send('Successfully refreshed access token.');
+    } else {
+      res.send('Could not refresh access token.')
+    }
+  }, function(err) {
+    res.send(err.message);
+  });
+});
+
+
+app.use('/clear', function(req, res, next) {
+  if (req.body.token !== process.env.SLACK_TOKEN) {
+    return res.status(500).send('Cross site request forgerizzle!');
+  }
+  next();
+});
+
+app.post('/clear', function(req, res) {
  spotifyApi.refreshAccessToken()
   .then(function(data) {
     spotifyApi.setAccessToken(data.body['access_token']);
@@ -127,8 +157,27 @@ app.post('/refresh', function(req, res) {
       spotifyApi.setRefreshToken(data.body['refresh_token']);
     }
 
-    res.send('refreshed');
-    
+    spotifyApi.getPlaylistTracks(process.env.SPOTIFY_USERNAME, process.env.SPOTIFY_PLAYLIST_ID)
+      .then(function(data) {
+        var tracks = data.body.items;
+        var deleteTracks = [];
+
+        for (var i = 0; i < 100; i++) {
+          deleteTracks.push({uri: tracks[i].uri});
+        }
+
+        res.setHeader('Content-Type', 'application/json');
+        res.send(JSON.stringify(deleteTracks));
+
+        /*
+        spotifyApi.removeTracksFromPlaylist(process.env.SPOTIFY_USERNAME, process.env.SPOTIFY_PLAYLIST_ID)
+          .then(function(data) {
+
+        });*/
+      }, function(err) {
+        res.send(err.message);
+      });
+
   }, function(err) {
     res.send(err.message);
   });
