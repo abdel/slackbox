@@ -1,6 +1,10 @@
 var http = require('http');
 var path = '/refresh';
 
+if (!process.env.PRODUCTION) {
+  require('dotenv').load();
+}
+
 if (process.argv[2] == 'clear') {
   var today = new Date();
 
