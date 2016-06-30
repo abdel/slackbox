@@ -45,7 +45,7 @@ app.get('/callback', function(req, res) {
 
 app.use('/store', function(req, res, next) {
   if (req.body.token !== process.env.SLACK_TOKEN) {
-    return res.status(500).send('Cross site request forgerizzle!');
+    return res.status(500).send('CSRF: Invalid Slack Token');
   }
   next();
 });
@@ -121,7 +121,7 @@ app.post('/store', function(req, res) {
 
 app.use('/refresh', function(req, res, next) {
   if (req.body.token !== process.env.SLACK_TOKEN) {
-    return res.status(500).send('Cross site request forgerizzle!');
+    return res.status(500).send('CSRF: Invalid Slack Token');
   }
   next();
 });
@@ -141,7 +141,7 @@ app.post('/refresh', function(req, res) {
 
 app.use('/clear', function(req, res, next) {
   if (req.body.token !== process.env.SLACK_TOKEN) {
-    return res.status(500).send('Cross site request forgerizzle!');
+    return res.status(500).send('CSRF: Invalid Slack Token');
   }
   next();
 });
