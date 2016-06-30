@@ -156,8 +156,17 @@ app.post('/clear', function(req, res) {
 
     spotifyApi.getPlaylistTracks(process.env.SPOTIFY_USERNAME, process.env.SPOTIFY_PLAYLIST_ID)
       .then(function(data) {
+        var playlistTracks = data.body.items;
+        var deleteTracks = [];
+
+        for (var i = 0; i < playlistTracks.length; i++) {
+          if (i <= 100) {
+            deleteTracks.push({uri: playlistTracks[i].uri});
+          }
+        }
+
         res.setHeader('Content-Type', 'application/json');
-        res.send(JSON.stringify(data.body.items[0]));
+        res.send(JSON.stringify(deleteTracks));
 
         /*
         spotifyApi.removeTracksFromPlaylist(process.env.SPOTIFY_USERNAME, process.env.SPOTIFY_PLAYLIST_ID)
