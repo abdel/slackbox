@@ -165,14 +165,13 @@ app.post('/clear', function(req, res) {
           }
         }
 
-        res.setHeader('Content-Type', 'application/json');
-        res.send(JSON.stringify(deleteTracks));
-
-        /*
-        spotifyApi.removeTracksFromPlaylist(process.env.SPOTIFY_USERNAME, process.env.SPOTIFY_PLAYLIST_ID)
+        spotifyApi.removeTracksFromPlaylist(process.env.SPOTIFY_USERNAME, process.env.SPOTIFY_PLAYLIST_ID, deleteTracks)
           .then(function(data) {
-
-        });*/
+            res.setHeader('Content-Type', 'application/json');
+            res.send('Tracks successfully deleted: ' + JSON.stringify(deleteTracks));
+          }, function(err) {
+            res.send(err.message);
+          });
       }, function(err) {
         res.send(err.message);
       });
