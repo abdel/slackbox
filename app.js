@@ -161,6 +161,7 @@ app.post('/clear', function(req, res) {
 
         for (var i = 0; i < playlistTracks.length; i++) {
           if (i <= 100) {
+            res.send(playlistTracks[i].uri+',');
             deleteTracks.push({uri: playlistTracks[i].uri});
           }
         }
