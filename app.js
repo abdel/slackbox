@@ -137,7 +137,7 @@ app.post('/refresh', function(req, res) {
     if (data.body['refresh_token']) {
       spotifyApi.setRefreshToken(data.body['refresh_token']);
     }
-    res.send('Refreshed access token.');
+    res.send('Refreshed access token. Expires in ' + data.body['expires_in'] + ' seconds.');
   }, function(err) {
     res.send(err.message);
   });
