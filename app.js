@@ -132,9 +132,6 @@ app.post('/refresh', function(req, res) {
     spotifyApi.setAccessToken(data.body['access_token']);
     if (data.body['refresh_token']) {
       spotifyApi.setRefreshToken(data.body['refresh_token']);
-      res.send('Successfully refreshed access token.');
-    } else {
-      res.send('Could not refresh access token.')
     }
   }, function(err) {
     res.send(err.message);
@@ -159,15 +156,8 @@ app.post('/clear', function(req, res) {
 
     spotifyApi.getPlaylistTracks(process.env.SPOTIFY_USERNAME, process.env.SPOTIFY_PLAYLIST_ID)
       .then(function(data) {
-        var tracks = data.body.items;
-        var deleteTracks = [];
-
-        for (var i = 0; i < 100; i++) {
-          deleteTracks.push({uri: tracks[i].uri});
-        }
-
         res.setHeader('Content-Type', 'application/json');
-        res.send(JSON.stringify(deleteTracks));
+        res.send(JSON.stringify(data.body));
 
         /*
         spotifyApi.removeTracksFromPlaylist(process.env.SPOTIFY_USERNAME, process.env.SPOTIFY_PLAYLIST_ID)
