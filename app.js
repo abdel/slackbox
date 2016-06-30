@@ -157,7 +157,7 @@ app.post('/clear', function(req, res) {
     spotifyApi.getPlaylistTracks(process.env.SPOTIFY_USERNAME, process.env.SPOTIFY_PLAYLIST_ID)
       .then(function(data) {
         res.setHeader('Content-Type', 'application/json');
-        res.send(JSON.stringify(data.body));
+        res.send(JSON.stringify(data.body.items[0]));
 
         /*
         spotifyApi.removeTracksFromPlaylist(process.env.SPOTIFY_USERNAME, process.env.SPOTIFY_PLAYLIST_ID)
