@@ -119,5 +119,20 @@ app.post('/store', function(req, res) {
     });
 });
 
+app.post('/refresh', function(req, res) {
+ spotifyApi.refreshAccessToken()
+  .then(function(data) {
+    spotifyApi.setAccessToken(data.body['access_token']);
+    if (data.body['refresh_token']) {
+      spotifyApi.setRefreshToken(data.body['refresh_token']);
+    }
+
+    res.send('refreshed');
+    
+  }, function(err) {
+    res.send(err.message);
+  });
+});
+
 app.set('port', (process.env.PORT || 5000));
 app.listen(app.get('port'));
