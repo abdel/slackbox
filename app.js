@@ -6,6 +6,10 @@ var path          = require('path');
 var validUrl      = require('valid-url');
 var SpotifyWebApi = require('spotify-web-api-node');
 
+if (!process.env.PRODUCTION) {
+  require('dotenv').load();
+}
+
 var spotifyApi = new SpotifyWebApi({
   clientId     : process.env.SPOTIFY_KEY,
   clientSecret : process.env.SPOTIFY_SECRET,

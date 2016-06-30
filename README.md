@@ -25,7 +25,7 @@ Also, don't forget to make a playlist. If you do this through [Spotify's web int
 
 ###Environment variables
 
-Once you've cloned slackbox or hit the "Deploy with Heroku" button you'll need to setup the following environment variables. These can set up as config variables in Heroku.
+Once you've cloned slackbox or hit the "Deploy with Heroku" button you'll need to setup the following environment variables. These can either stored in a `.env` file or set up as config variables in Heroku.
 
 * `SLACK_TOKEN` - The token from Slack's Slash Command.
 * `SLACK_RESPONSE_TYPE` - `in_channel` or `ephemeral`, [Slack Documentation](https://api.slack.com/slash-commands#responding_to_a_command)
