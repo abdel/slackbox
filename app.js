@@ -56,14 +56,13 @@ app.get('/callback', function(req, res) {
 });
 
 app.post('/store', checkToken, function(req, res) {
-  var trackAdded = function () {
-    var text = 'Track added: *' + track.name + '* by *' + track.artists[0].name + '*';
-    var responseType = process.env.SLACK_RESPONSE_TYPE || 'ephemeral';
+  var track;
 
+  var trackAdded = function (data) {
     res.setHeader('Content-Type', 'application/json');
     res.send({
-      responseType: responseType,
-      text: text
+      responseType: process.env.SLACK_RESPONSE_TYPE || 'ephemeral',
+      text: 'Track added: *' + track.name + '* by *' + track.artists[0].name + '*'
     });
   };
 
@@ -75,50 +74,54 @@ app.post('/store', checkToken, function(req, res) {
         spotify.setRefreshToken(data.body['refresh_token']);
       }
 
+      var query = req.body.text;
+
       if (validUrl.isUri(req.body.text)) {
-        var parsed = url.parse(req.body.text);
-        var trackID = path.basename(parsed.pathname);
+        var trackId, matches;
 
-        spotify.getTrack(trackID)
-          .then(function (data) {
-            var track = data.body;
+        if (matches = query.match(/^spotify:track:([0-9A-Za-z]+)$/)) {
+          trackId = matches[1];
+        } else {
+          var parsed = url.parse(query);
 
-            spotify.addTracksToPlaylist(process.env.SPOTIFY_USERNAME, process.env.SPOTIFY_PLAYLIST_ID, ['spotify:track:' + trackID])
-              .then(trackAdded, function (err) {
-                return res.send(err.message);
-              });
-          }, function (err) {
-            return res.send('Could not find that track.');
-          });
-
-      } else {
-        var query = req.body.text;
-
-        if (query.indexOf(' - ') !== -1) {
-          var pieces = query.split(' - ');
-          query = 'artist:' + pieces[0].trim() + ' track:' + pieces[1].trim();
+          trackId = path.basename(parsed.pathname);
         }
-    
-        spotify.searchTracks(query)
+
+        return spotify.getTrack(trackId)
           .then(function (data) {
-            var results = data.body.tracks.items;
-
-            if (results.length === 0) {
-              return res.send('Could not find that track.');
-            }
-
-            var track = results[0];
-
-            spotify.addTracksToPlaylist(process.env.SPOTIFY_USERNAME, process.env.SPOTIFY_PLAYLIST_ID, ['spotify:track:' + track.id])
-              .then(trackAdded, function (err) {
-                return res.send(err.message);
-              });
-          }, function (err) {
-            return res.send(err.message);
+            return data.body;
           });
       }
-    }, function (err) {
-      return res.send('Could not refresh access token.');
+
+      if (query.indexOf(' - ') !== -1) {
+        var pieces = query.split(' - ');
+        query = 'artist:' + pieces[0].trim()
+              + ' track:' + pieces[1].trim();
+      }
+
+      return spotify.searchTracks(query)
+        .then(function (data) {
+          var results = data.body.tracks.items;
+
+          if (results.length === 0) {
+            throw { message: 'Could not find that track.' };
+          }
+
+          return results[0];
+        });
+    })
+    .then(function (data) {
+      track = data;
+
+      return spotify.addTracksToPlaylist(
+        process.env.SPOTIFY_USERNAME,
+        process.env.SPOTIFY_PLAYLIST_ID,
+        [track.uri]
+      );
+    })
+    .then(trackAdded)
+    .catch(function (err) {
+      return res.send(err.message);
     });
 });
 
