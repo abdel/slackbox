@@ -1,9 +1,8 @@
-var express       = require('express');
-var bodyParser    = require('body-parser');
-var request       = require('request');
-var url           = require('url');
-var path          = require('path');
-var validUrl      = require('valid-url');
+var express = require('express');
+var bodyParser = require('body-parser');
+var url = require('url');
+var path = require('path');
+var validUrl = require('valid-url');
 var SpotifyWebApi = require('spotify-web-api-node');
 
 if (!process.env.PRODUCTION) {
@@ -18,28 +17,27 @@ var spotify = new SpotifyWebApi({
 
 var app = express();
 app.use(bodyParser.json());
-app.use(bodyParser.urlencoded({
-  extended: true
-}));
+app.use(bodyParser.urlencoded({ extended: true }));
 
 function checkToken(req, res, next) {
   if (req.body.token !== process.env.SLACK_TOKEN) {
     return res.status(500).send('CSRF: Invalid Slack Token');
   }
+
   next();
 };
 
 app.get('/', function (req, res) {
   if (spotify.getAccessToken()) {
-    return res.send('You are logged in.');
+    res.send('You are logged in.');
+  } else {
+    res.send('<a href="/authorise">Authorise</a>');
   }
-
-  return res.send('<a href="/authorise">Authorise</a>');
 });
 
 app.get('/authorise', function(req, res) {
-  var scopes = ['playlist-modify-public', 'playlist-modify-private'];
-  var state  = new Date().getTime();
+  var scopes = ['playlist-modify-public', 'playlist-modify-private'],
+      state  = new Date().getTime();
 
   res.redirect(spotify.createAuthorizeURL(scopes, state));
 });
@@ -50,7 +48,8 @@ app.get('/callback', function(req, res) {
       spotify.setAccessToken(data.body['access_token']);
       spotify.setRefreshToken(data.body['refresh_token']);
       return res.redirect('/');
-    }, function (err) {
+    })
+    .catch(function (err) {
       return res.send(err);
     });
 });
@@ -133,7 +132,8 @@ app.post('/refresh', checkToken, function (req, res) {
       }
 
       res.send('Refreshed access token. Expires in ' + data.body['expires_in'] + ' seconds.');
-    }, function (err) {
+    })
+    .catch(function (err) {
       res.send(err.message);
     });
 });
