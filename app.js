@@ -138,6 +138,9 @@ app.post('/refresh', checkToken, function (req, res) {
 });
 
 app.post('/clear', checkToken, function(req, res) {
+  var playlistTracks,
+      deleteTracks = [];
+
   spotify.refreshAccessToken()
     .then(function (data) {
       spotify.setAccessToken(data.body['access_token']);
@@ -146,29 +149,29 @@ app.post('/clear', checkToken, function(req, res) {
         spotify.setRefreshToken(data.body['refresh_token']);
       }
 
-      spotify.getPlaylistTracks(process.env.SPOTIFY_USERNAME, process.env.SPOTIFY_PLAYLIST_ID)
-        .then(function (data) {
-          var playlistTracks = data.body.items;
-          var deleteTracks = [];
+      return spotify.getPlaylistTracks(
+        process.env.SPOTIFY_USERNAME,
+        process.env.SPOTIFY_PLAYLIST_ID
+      );
+    })
+    .then(function (data) {
+      playlistTracks = data.body.items;
 
-          for (var i = 0; i < Math.min(playlistTracks.length, 99); i++) {
-            deleteTracks.push({uri: playlistTracks[i].track.uri});
-          }
+      for (var i = 0; i < Math.min(playlistTracks.length, 99); i++) {
+        deleteTracks.push({uri: playlistTracks[i].track.uri});
+      }
 
-          spotify.removeTracksFromPlaylist(
-              process.env.SPOTIFY_USERNAME,
-              process.env.SPOTIFY_PLAYLIST_ID,
-              deleteTracks
-            ).then(function (data) {
-              res.setHeader('Content-Type', 'application/json');
-              res.send('Tracks successfully deleted: ' + JSON.stringify(deleteTracks));
-            }, function (err) {
-              res.send(err.message);
-            });
-        }, function (err) {
-          res.send(err.message);
-        });
-    }, function (err) {
+      return spotify.removeTracksFromPlaylist(
+        process.env.SPOTIFY_USERNAME,
+        process.env.SPOTIFY_PLAYLIST_ID,
+        deleteTracks
+      );
+    })
+    .then(function (data) {
+      res.setHeader('Content-Type', 'application/json');
+      res.send('Tracks successfully deleted: ' + JSON.stringify(deleteTracks));
+    })
+    .catch(function (err) {
       res.send(err.message);
     });
 });
