@@ -10,7 +10,7 @@ if (!process.env.PRODUCTION) {
   require('dotenv').load();
 }
 
-var spotifyApi = new SpotifyWebApi({
+var spotify = new SpotifyWebApi({
   clientId     : process.env.SPOTIFY_KEY,
   clientSecret : process.env.SPOTIFY_SECRET,
   redirectUri  : process.env.SPOTIFY_REDIRECT_URI
@@ -30,24 +30,25 @@ function checkToken(req, res, next) {
 };
 
 app.get('/', function (req, res) {
-  if (spotifyApi.getAccessToken()) {
+  if (spotify.getAccessToken()) {
     return res.send('You are logged in.');
   }
+
   return res.send('<a href="/authorise">Authorise</a>');
 });
 
 app.get('/authorise', function(req, res) {
   var scopes = ['playlist-modify-public', 'playlist-modify-private'];
   var state  = new Date().getTime();
-  var authoriseURL = spotifyApi.createAuthorizeURL(scopes, state);
-  res.redirect(authoriseURL);
+
+  res.redirect(spotify.createAuthorizeURL(scopes, state));
 });
 
 app.get('/callback', function(req, res) {
-  spotifyApi.authorizationCodeGrant(req.query.code)
+  spotify.authorizationCodeGrant(req.query.code)
     .then(function (data) {
-      spotifyApi.setAccessToken(data.body['access_token']);
-      spotifyApi.setRefreshToken(data.body['refresh_token']);
+      spotify.setAccessToken(data.body['access_token']);
+      spotify.setRefreshToken(data.body['refresh_token']);
       return res.redirect('/');
     }, function (err) {
       return res.send(err);
@@ -55,31 +56,35 @@ app.get('/callback', function(req, res) {
 });
 
 app.post('/store', checkToken, function(req, res) {
-  spotifyApi.refreshAccessToken()
+  var trackAdded = function () {
+    var text = 'Track added: *' + track.name + '* by *' + track.artists[0].name + '*';
+    var responseType = process.env.SLACK_RESPONSE_TYPE || 'ephemeral';
+
+    res.setHeader('Content-Type', 'application/json');
+    res.send({
+      responseType: responseType,
+      text: text
+    });
+  };
+
+  spotify.refreshAccessToken()
     .then(function (data) {
-      spotifyApi.setAccessToken(data.body['access_token']);
+      spotify.setAccessToken(data.body['access_token']);
+
       if (data.body['refresh_token']) {
-        spotifyApi.setRefreshToken(data.body['refresh_token']);
+        spotify.setRefreshToken(data.body['refresh_token']);
       }
+
       if (validUrl.isUri(req.body.text)) {
         var parsed = url.parse(req.body.text);
         var trackID = path.basename(parsed.pathname);
 
-        spotifyApi.getTrack(trackID)
+        spotify.getTrack(trackID)
           .then(function (data) {
             var track = data.body;
 
-            spotifyApi.addTracksToPlaylist(process.env.SPOTIFY_USERNAME, process.env.SPOTIFY_PLAYLIST_ID, ['spotify:track:' + trackID])
-              .then(function (data) {
-                text = 'Track added: *' + track.name + '* by *' + track.artists[0].name + '*';
-                response_type = process.env.SLACK_RESPONSE_TYPE || 'ephemeral';
-
-                res.setHeader('Content-Type', 'application/json');
-                res.send({
-                  response_type: response_type,
-                  text: text
-                });
-              }, function (err) {
+            spotify.addTracksToPlaylist(process.env.SPOTIFY_USERNAME, process.env.SPOTIFY_PLAYLIST_ID, ['spotify:track:' + trackID])
+              .then(trackAdded, function (err) {
                 return res.send(err.message);
               });
           }, function (err) {
@@ -87,31 +92,25 @@ app.post('/store', checkToken, function(req, res) {
           });
 
       } else {
-        if (req.body.text.indexOf(' - ') === -1) {
-          var query = req.body.text;
-        } else {
-          var pieces = req.body.text.split(' - ');
-          var query = 'artist:' + pieces[0].trim() + ' track:' + pieces[1].trim();
+        var query = req.body.text;
+
+        if (query.indexOf(' - ') !== -1) {
+          var pieces = query.split(' - ');
+          query = 'artist:' + pieces[0].trim() + ' track:' + pieces[1].trim();
         }
     
-        spotifyApi.searchTracks(query)
+        spotify.searchTracks(query)
           .then(function (data) {
             var results = data.body.tracks.items;
+
             if (results.length === 0) {
               return res.send('Could not find that track.');
             }
-            var track = results[0];
-            spotifyApi.addTracksToPlaylist(process.env.SPOTIFY_USERNAME, process.env.SPOTIFY_PLAYLIST_ID, ['spotify:track:' + track.id])
-              .then(function (data) {
-                text = 'Track added: *' + track.name + '* by *' + track.artists[0].name + '*';
-                response_type = process.env.SLACK_RESPONSE_TYPE || 'ephemeral';
 
-                res.setHeader('Content-Type', 'application/json');
-                res.send({
-                  response_type: response_type,
-                  text: text
-                });
-              }, function (err) {
+            var track = results[0];
+
+            spotify.addTracksToPlaylist(process.env.SPOTIFY_USERNAME, process.env.SPOTIFY_PLAYLIST_ID, ['spotify:track:' + track.id])
+              .then(trackAdded, function (err) {
                 return res.send(err.message);
               });
           }, function (err) {
@@ -124,12 +123,14 @@ app.post('/store', checkToken, function(req, res) {
 });
 
 app.post('/refresh', checkToken, function (req, res) {
-  spotifyApi.refreshAccessToken()
+  spotify.refreshAccessToken()
     .then(function (data) {
-      spotifyApi.setAccessToken(data.body['access_token']);
+      spotify.setAccessToken(data.body['access_token']);
+
       if (data.body['refresh_token']) {
-        spotifyApi.setRefreshToken(data.body['refresh_token']);
+        spotify.setRefreshToken(data.body['refresh_token']);
       }
+
       res.send('Refreshed access token. Expires in ' + data.body['expires_in'] + ' seconds.');
     }, function (err) {
       res.send(err.message);
@@ -137,25 +138,24 @@ app.post('/refresh', checkToken, function (req, res) {
 });
 
 app.post('/clear', checkToken, function(req, res) {
-  spotifyApi.refreshAccessToken()
-    .then(function(data) {
-      spotifyApi.setAccessToken(data.body['access_token']);
+  spotify.refreshAccessToken()
+    .then(function (data) {
+      spotify.setAccessToken(data.body['access_token']);
+
       if (data.body['refresh_token']) {
-        spotifyApi.setRefreshToken(data.body['refresh_token']);
+        spotify.setRefreshToken(data.body['refresh_token']);
       }
 
-      spotifyApi.getPlaylistTracks(process.env.SPOTIFY_USERNAME, process.env.SPOTIFY_PLAYLIST_ID)
-        .then(function(data) {
+      spotify.getPlaylistTracks(process.env.SPOTIFY_USERNAME, process.env.SPOTIFY_PLAYLIST_ID)
+        .then(function (data) {
           var playlistTracks = data.body.items;
           var deleteTracks = [];
 
-          for (var i = 0; i < playlistTracks.length; i++) {
-            if (i <= 100) {
-              deleteTracks.push({uri: playlistTracks[i].track.uri});
-            }
+          for (var i = 0; i < Math.min(playlistTracks.length, 99); i++) {
+            deleteTracks.push({uri: playlistTracks[i].track.uri});
           }
 
-          spotifyApi.removeTracksFromPlaylist(
+          spotify.removeTracksFromPlaylist(
               process.env.SPOTIFY_USERNAME,
               process.env.SPOTIFY_PLAYLIST_ID,
               deleteTracks
