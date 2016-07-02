@@ -9,6 +9,8 @@ if (!process.env.PRODUCTION) {
   require('dotenv').load();
 }
 
+process.env.SLACK_RESPONSE_TYPE = process.env.SLACK_RESPONSE_TYPE || 'ephemeral';
+
 var spotify = new SpotifyWebApi({
   clientId     : process.env.SPOTIFY_KEY,
   clientSecret : process.env.SPOTIFY_SECRET,
@@ -25,6 +27,13 @@ function checkToken(req, res, next) {
   }
 
   next();
+};
+
+function createSlackResponse(message) {
+  return {
+    responseType: process.env.SLACK_RESPONSE_TYPE,
+    text: message
+  };
 };
 
 app.get('/', function (req, res) {
@@ -56,6 +65,8 @@ app.get('/callback', function(req, res) {
 
 app.post('/store', checkToken, function(req, res) {
   var track;
+
+  res.setHeader('Content-Type', 'application/json');
 
   spotify.refreshAccessToken()
     .then(function (data) {
@@ -95,7 +106,7 @@ app.post('/store', checkToken, function(req, res) {
           var results = data.body.tracks.items;
 
           if (results.length === 0) {
-            throw { message: 'Could not find that track.' };
+            throw "Could not find that track.";
           }
 
           return results[0];
@@ -111,14 +122,11 @@ app.post('/store', checkToken, function(req, res) {
       );
     })
     .then(function (data) {
-      res.setHeader('Content-Type', 'application/json');
-      res.send({
-        responseType: process.env.SLACK_RESPONSE_TYPE || 'ephemeral',
-        text: 'Track added: *' + track.name + '* by *' + track.artists[0].name + '*'
-      });
+      var message = 'Track added: *' + track.name + '* by *' + track.artists[0].name + '*';
+      res.send(createSlackResponse(message));
     })
     .catch(function (err) {
-      return res.send(err.message);
+      return res.send(createSlackResponse(err.message || err));
     });
 });
 
