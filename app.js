@@ -58,14 +58,6 @@ app.get('/callback', function(req, res) {
 app.post('/store', checkToken, function(req, res) {
   var track;
 
-  var trackAdded = function (data) {
-    res.setHeader('Content-Type', 'application/json');
-    res.send({
-      responseType: process.env.SLACK_RESPONSE_TYPE || 'ephemeral',
-      text: 'Track added: *' + track.name + '* by *' + track.artists[0].name + '*'
-    });
-  };
-
   spotify.refreshAccessToken()
     .then(function (data) {
       spotify.setAccessToken(data.body['access_token']);
@@ -119,7 +111,13 @@ app.post('/store', checkToken, function(req, res) {
         [track.uri]
       );
     })
-    .then(trackAdded)
+    .then(function (data) {
+      res.setHeader('Content-Type', 'application/json');
+      res.send({
+        responseType: process.env.SLACK_RESPONSE_TYPE || 'ephemeral',
+        text: 'Track added: *' + track.name + '* by *' + track.artists[0].name + '*'
+      });
+    })
     .catch(function (err) {
       return res.send(err.message);
     });
