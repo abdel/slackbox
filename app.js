@@ -4,6 +4,7 @@ var url = require('url');
 var path = require('path');
 var validUrl = require('valid-url');
 var SpotifyWebApi = require('spotify-web-api-node');
+var morgan = require('morgan');
 
 if (!process.env.PRODUCTION) {
   require('dotenv').load();
@@ -17,11 +18,14 @@ var spotify = new SpotifyWebApi({
   redirectUri  : process.env.SPOTIFY_REDIRECT_URI
 });
 
+var accessTokenTimer;
+
 var app = express();
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
+app.use(morgan('[:date[iso]] :method :url :status :response-time ms'));
 
-function checkToken(req, res, next) {
+function checkSlackToken(req, res, next) {
   if (req.body.token !== process.env.SLACK_TOKEN) {
     return res.status(500).send('CSRF: Invalid Slack Token');
   }
@@ -35,6 +39,27 @@ function createSlackResponse(message) {
     text: message
   };
 };
+
+function refreshSpotifyAccessToken() {
+  return spotify.refreshAccessToken()
+    .then(function (data) {
+      return updateSpotifyToken(data.body);
+    });
+};
+
+function updateSpotifyToken(data) {
+  spotify.setAccessToken(data['access_token']);
+
+  if (data['refresh_token']) {
+    spotify.setRefreshToken(data['refresh_token']);
+  }
+
+  var timeout = (parseInt(data['expires_in']) - 60) * 1000;
+  accessTokenTimer = setTimeout(refreshSpotifyAccessToken, timeout);
+  console.info("Spotify access token updated; refresh scheduled in " + timeout + "ms.");
+
+  return data;
+}
 
 app.get('/', function (req, res) {
   if (spotify.getAccessToken()) {
@@ -54,64 +79,55 @@ app.get('/authorise', function(req, res) {
 app.get('/callback', function(req, res) {
   spotify.authorizationCodeGrant(req.query.code)
     .then(function (data) {
-      spotify.setAccessToken(data.body['access_token']);
-      spotify.setRefreshToken(data.body['refresh_token']);
+      clearTimeout(accessTokenTimer);
+      updateSpotifyToken(data.body);
       return res.redirect('/');
     })
-    .catch(function (err) {
-      return res.send(err);
+    .catch(function () {
+      res.send("Could not refresh Spotify access token.");
     });
 });
 
-app.post('/store', checkToken, function(req, res) {
+var resolveSpotifyTrackQuery = function (query) {
+  if (validUrl.isUri(query)) {
+    var trackId, matches;
+
+    if (matches = query.match(/^spotify:track:([0-9A-Za-z]+)$/)) {
+      trackId = matches[1];
+    } else {
+      trackId = path.basename(url.parse(query).pathname);
+    }
+
+    return spotify.getTrack(trackId)
+      .then(function (data) {
+        return data.body;
+      });
+  }
+
+  if (query.indexOf(' - ') !== -1) {
+    var pieces = query.split(' - ');
+    query = 'artist:' + pieces[0].trim()
+          + ' track:' + pieces[1].trim();
+  }
+
+  return spotify.searchTracks(query)
+    .then(function (data) {
+      var results = data.body.tracks.items;
+
+      if (results.length === 0) {
+        throw "Could not find that track.";
+      }
+
+      return results[0];
+    });
+};
+
+app.post('/store', checkSlackToken, function(req, res) {
   var track;
 
   res.setHeader('Content-Type', 'application/json');
 
-  spotify.refreshAccessToken()
-    .then(function (data) {
-      spotify.setAccessToken(data.body['access_token']);
-
-      if (data.body['refresh_token']) {
-        spotify.setRefreshToken(data.body['refresh_token']);
-      }
-
-      var query = req.body.text;
-
-      if (validUrl.isUri(req.body.text)) {
-        var trackId, matches;
-
-        if (matches = query.match(/^spotify:track:([0-9A-Za-z]+)$/)) {
-          trackId = matches[1];
-        } else {
-          var parsed = url.parse(query);
-
-          trackId = path.basename(parsed.pathname);
-        }
-
-        return spotify.getTrack(trackId)
-          .then(function (data) {
-            return data.body;
-          });
-      }
-
-      if (query.indexOf(' - ') !== -1) {
-        var pieces = query.split(' - ');
-        query = 'artist:' + pieces[0].trim()
-              + ' track:' + pieces[1].trim();
-      }
-
-      return spotify.searchTracks(query)
-        .then(function (data) {
-          var results = data.body.tracks.items;
-
-          if (results.length === 0) {
-            throw "Could not find that track.";
-          }
-
-          return results[0];
-        });
-    })
+  resolveSpotifyTrackQuery(req.body.text)
     .then(function (data) {
       track = data;
 
@@ -126,43 +142,15 @@ app.post('/store', checkToken, function(req, res) {
       res.send(createSlackResponse(message));
     })
     .catch(function (err) {
-      return res.send(createSlackResponse(err.message || err));
+      res.send(createSlackResponse(err.message || err));
     });
 });
 
-app.post('/refresh', checkToken, function (req, res) {
-  spotify.refreshAccessToken()
-    .then(function (data) {
-      spotify.setAccessToken(data.body['access_token']);
-
-      if (data.body['refresh_token']) {
-        spotify.setRefreshToken(data.body['refresh_token']);
-      }
-
-      res.send('Refreshed access token. Expires in ' + data.body['expires_in'] + ' seconds.');
-    })
-    .catch(function (err) {
-      res.send(err.message);
-    });
-});
-
-app.post('/clear', checkToken, function(req, res) {
+app.post('/clear', checkSlackToken, function(req, res) {
   var playlistTracks,
       deleteTracks = [];
 
-  spotify.refreshAccessToken()
-    .then(function (data) {
-      spotify.setAccessToken(data.body['access_token']);
-
-      if (data.body['refresh_token']) {
-        spotify.setRefreshToken(data.body['refresh_token']);
-      }
-
-      return spotify.getPlaylistTracks(
-        process.env.SPOTIFY_USERNAME,
-        process.env.SPOTIFY_PLAYLIST_ID
-      );
-    })
+  spotify.getPlaylistTracks(process.env.SPOTIFY_USERNAME, process.env.SPOTIFY_PLAYLIST_ID)
     .then(function (data) {
       playlistTracks = data.body.items;
 
