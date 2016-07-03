@@ -31,7 +31,7 @@ function checkToken(req, res, next) {
 
 function createSlackResponse(message) {
   return {
-    responseType: process.env.SLACK_RESPONSE_TYPE,
+    response_type: process.env.SLACK_RESPONSE_TYPE,
     text: message
   };
 };
