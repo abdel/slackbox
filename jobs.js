@@ -6,16 +6,11 @@ if (!process.env.PRODUCTION) {
 }
 
 if (process.argv[2] == 'clear') {
-  var today = new Date();
-
-  // Check if today is Monday
-  if (today.getDay() == 1) {
-    path = '/clear';
-  }
+  path = '/clear';
 }
 
 var options = {
-  hostname: 'mf-jukebox.herokuapp.com',
+  hostname: process.env.SLACKBOX_HOSTNAME,
   port: 80,
   path: path,
   method: 'POST',
