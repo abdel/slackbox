@@ -13,9 +13,9 @@ if (!process.env.PRODUCTION) {
 process.env.SLACK_RESPONSE_TYPE = process.env.SLACK_RESPONSE_TYPE || 'ephemeral';
 
 var spotify = new SpotifyWebApi({
-    clientId     : process.env.SPOTIFY_KEY,
-    clientSecret : process.env.SPOTIFY_SECRET,
-    redirectUri  : process.env.SPOTIFY_REDIRECT_URI
+    clientId: process.env.SPOTIFY_KEY,
+    clientSecret: process.env.SPOTIFY_SECRET,
+    redirectUri: process.env.SPOTIFY_REDIRECT_URI
 });
 
 var accessTokenTimer;
@@ -42,9 +42,7 @@ function createSlackResponse(message) {
 
 function refreshSpotifyAccessToken() {
     return spotify.refreshAccessToken()
-        .then(function (data) {
-            return updateSpotifyToken(data.body);
-        });
+        .then(data => updateSpotifyToken(data.body));
 };
 
 function updateSpotifyToken(data) {
@@ -61,34 +59,7 @@ function updateSpotifyToken(data) {
     return data;
 }
 
-app.get('/', function (req, res) {
-    if (spotify.getAccessToken()) {
-        res.send('You are logged in.');
-    } else {
-        res.send('<a href="/authorise">Authorise</a>');
-    }
-});
-
-app.get('/authorise', function(req, res) {
-    var scopes = ['playlist-modify-public', 'playlist-modify-private'],
-            state  = new Date().getTime();
-
-    res.redirect(spotify.createAuthorizeURL(scopes, state));
-});
-
-app.get('/callback', function(req, res) {
-    spotify.authorizationCodeGrant(req.query.code)
-        .then(function (data) {
-            clearTimeout(accessTokenTimer);
-            updateSpotifyToken(data.body);
-            return res.redirect('/');
-        })
-        .catch(function () {
-            res.send("Could not refresh Spotify access token.");
-        });
-});
-
-var resolveSpotifyTrackQuery = function (query) {
+function resolveSpotifyTrackQuery(query) {
     if (validUrl.isUri(query)) {
         var trackId, matches;
 
@@ -98,10 +69,7 @@ var resolveSpotifyTrackQuery = function (query) {
             trackId = path.basename(url.parse(query).pathname);
         }
 
-        return spotify.getTrack(trackId)
-            .then(function (data) {
-                return data.body;
-            });
+        return spotify.getTrack(trackId).then(data => data.body);
     }
 
     if (query.indexOf(' - ') !== -1) {
@@ -111,7 +79,7 @@ var resolveSpotifyTrackQuery = function (query) {
     }
 
     return spotify.searchTracks(query)
-        .then(function (data) {
+        .then(data => {
             var results = data.body.tracks.items;
 
             if (results.length === 0) {
@@ -120,38 +88,57 @@ var resolveSpotifyTrackQuery = function (query) {
 
             return results[0];
         });
-};
+}
 
-app.post('/store', checkSlackToken, function(req, res) {
+app.get('/', (req, res) => {
+    if (spotify.getAccessToken()) {
+        res.send('You are logged in.');
+    } else {
+        res.send('<a href="/authorise">Authorise</a>');
+    }
+});
+
+app.get('/authorise', (req, res) => {
+    var scopes = ['playlist-modify-public', 'playlist-modify-private'],
+        state  = new Date().getTime();
+
+    res.redirect(spotify.createAuthorizeURL(scopes, state));
+});
+
+app.get('/callback', (req, res) => {
+    spotify.authorizationCodeGrant(req.query.code)
+        .then(data => {
+            clearTimeout(accessTokenTimer);
+            updateSpotifyToken(data.body);
+            return res.redirect('/');
+        })
+        .catch(() => res.send("Could not refresh Spotify access token."));
+});
+
+app.post('/store', checkSlackToken, (req, res) => {
     var track;
 
     res.setHeader('Content-Type', 'application/json');
 
     resolveSpotifyTrackQuery(req.body.text)
-        .then(function (data) {
-            track = data;
-
-            return spotify.addTracksToPlaylist(
-                process.env.SPOTIFY_USERNAME,
-                process.env.SPOTIFY_PLAYLIST_ID,
-                [track.uri]
-            );
-        })
-        .then(function (data) {
+        .then(data => spotify.addTracksToPlaylist(
+            process.env.SPOTIFY_USERNAME,
+            process.env.SPOTIFY_PLAYLIST_ID,
+            [data.uri]
+        ))
+        .then(data => {
             var message = 'Track added: *' + track.name + '* by *' + track.artists[0].name + '*';
             res.send(createSlackResponse(message));
         })
-        .catch(function (err) {
-            res.send(createSlackResponse(err.message || err));
-        });
+        .catch(err => res.send(createSlackResponse(err.message || err)));
 });
 
-app.post('/clear', checkSlackToken, function(req, res) {
+app.post('/clear', checkSlackToken, (req, res) => {
     var playlistTracks,
-            deleteTracks = [];
+        deleteTracks = [];
 
     spotify.getPlaylistTracks(process.env.SPOTIFY_USERNAME, process.env.SPOTIFY_PLAYLIST_ID)
-        .then(function (data) {
+        .then(data => {
             playlistTracks = data.body.items;
 
             for (var i = 0; i < Math.min(playlistTracks.length, 99); i++) {
@@ -164,13 +151,11 @@ app.post('/clear', checkSlackToken, function(req, res) {
                 deleteTracks
             );
         })
-        .then(function (data) {
+        .then(data => {
             res.setHeader('Content-Type', 'application/json');
             res.send('Tracks successfully deleted: ' + JSON.stringify(deleteTracks));
         })
-        .catch(function (err) {
-            res.send(err.message);
-        });
+        .catch(err => res.send(err.message));
 });
 
 app.set('port', (process.env.PORT || 5000));
